@@ -15,9 +15,9 @@ class Instruction:
         self.type = InstrType.R if self.opcode == 0 else \
                     InstrType.J if self.opcode == 2 or self.opcode == 3 else InstrType.I
         self.fields = self.get_fields(self.bits, self.type, self.opcode)
-        self.name = MIPSDecoder.OPCODES.get(self.opcode, MIPSDecoder.FUNCTIONS.get(self.fields.get('funct', 0), "Desconhecido"))
-        self.nome_imprimir = MIPSDecoder.OPCODES.get(self.opcode, ("Desconhecido",))[0]
+        self.name = MIPSDecoder.OPCODES.get(self.opcode, MIPSDecoder.FUNCTIONS.get(self.fields.get('funct', 0), "Desconhecido"))[0]
         self.mnemonic = self.get_mnemonic(self.fields, self.type)
+        print(f' Formato mnemonico: {self.mnemonic}')
 
     def __str__(self) -> str:
         return self.mnemonic
@@ -29,12 +29,11 @@ class Instruction:
 
         #Criação de um dicionário chamado campos
         campos = {}
+        # esses comandos abaixo definem o intervalo dos 32 bits que devo "pegar"
+        # int(bits[<inicio>:<fim>], 2), "início" dita o índice do primeiro elemento,
+        # "fim" dita o último elemento, mas não o inclui. E 2 determina que isso vai ser convertido em binário.
+        # dessa forma separo cada parte que é equivalente a cada informação como rs rd rt e etc
         if campo1 == "R":
-            #esses comandos abaixo definem o intervalo dos 32 bits que devo "pegar"
-            #int(bits[<inicio>:<fim>], 2), "início" dita o índice do primeiro elemento,
-            # "fim" dita o último elemento, mas não o inclui. E 2 determina que isso vai ser convertido em binário.
-            #dessa forma separo cada parte que é equivalente a cada informação como rs rd rt e etc
-
             campos = {
                 "opcode": opcode,#primeiros 6 bits
                 "rs": int(bits[6:11], 2),#do sétimo bit ao décimo bit
@@ -71,6 +70,7 @@ class Instruction:
 
             # Busca o formato correto de mnemônico e substitui os placeholders
             formato = MIPSDecoder.MNEMONIC_FORMATS.get(nome_instrucao, "<instr> <rd>, <rs>, <rt>")#busca lá no dicionario que criei o jeitao da instrução
+
             # aqui ele retorna já substituindo
             return formato.replace("<instr>", nome_instrucao) \
                 .replace("<rd>", rd) \
@@ -198,7 +198,7 @@ class MIPSDecoder:
         0b100110: 'xor',	            # xor rd, rs, rt
     }
 
-    # Dicionario para as instruções do tipo R diferentes do padrao normal
+    # Dicionario para as instruções do tipo R diferentes do padrão normal
     # Mapeamento dos formatos de mnemônico
     MNEMONIC_FORMATS = {
         'jr': '<instr> <rs>',
@@ -230,7 +230,7 @@ class MIPSDecoder:
     def parse_instruction(self, bits: str) -> Instruction:
         return Instruction(bits)
 
-    def decode_instruction(self, instr) -> dict:#Isso aqui, só por Deus viu...
+    def decode_instruction(self, instr) -> dict: #Isso aqui, só por Deus viu...
         # Implemente aqui...
         # Este método deve retornar um dicionário com os sinais de controle da instrução
         # { RegDst, Branch, MemRead, MemWrite, MemToReg, ALUSrc, RegWrite }. Exemplo:
@@ -265,7 +265,7 @@ def print_output(instr: Instruction, signals: dict) -> None:
     if instr.type == InstrType.R:
         print(f'Instrução: {MIPSDecoder.FUNCTIONS.get(instr.fields.get("funct", 0), "Desconhecido")}')
     else:
-        print(f'Instrução: {instr.nome_imprimir}')
+        print(f'Instrução: {instr.name}')
     print(f'- Tipo: {instr.type.name}')
     print(f'- Campos:')
     for field, value in instr.fields.items():
@@ -299,7 +299,7 @@ def main():
 if __name__ == '__main__':
     main()
 
-    #PARA TESTAR O CODIGO:
+    #PARA TESTAR O CÓDIGO:
     # # Instruções do tipo R (funct define a operação)
     # instr_r =
     #     "0b00000000001000000000000000001000",  # jr $1
