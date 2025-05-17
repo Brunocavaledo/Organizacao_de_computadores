@@ -17,7 +17,7 @@ class Instruction:
         self.fields = self.get_fields(self.bits, self.type, self.opcode)
         self.name = MIPSDecoder.OPCODES.get(self.opcode, MIPSDecoder.FUNCTIONS.get(self.fields.get('funct', 0), "Desconhecido"))[0]
         self.mnemonic = self.get_mnemonic(self.fields, self.type)
-        print(f' Formato mnemonico: {self.mnemonic}')
+        print(f' Formato mnemonico: {self.mnemonic}')# pra imprimir o formato mnemonico da instrução
 
     def __str__(self) -> str:
         return self.mnemonic
