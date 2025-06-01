@@ -413,6 +413,7 @@ def main():
         input_value = input().strip()
         if not input_value:
             break
+
         instr = decoder.parse_instruction(f'{parse_int(input_value):032b}')
         signals = decoder.get_sinais_de_controle(instr)
         print_output(instr, signals)
