@@ -240,7 +240,7 @@ class MIPSDecoder: #Dicionário ou mapa
 
     @staticmethod
     def get_sinais_de_controle(instr):
-
+    #DICIONARIO DE SINAIS DE CONTROLE
         sinais_de_controle = {
             # tipo R
             'add': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
