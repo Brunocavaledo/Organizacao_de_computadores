@@ -15,9 +15,13 @@ class Instruction:
         self.type = InstrType.R if self.opcode == 0 else \
                     InstrType.J if self.opcode == 2 or self.opcode == 3 else InstrType.I
         self.fields = self.get_fields(self.bits, self.type, self.opcode)
-        self.name = MIPSDecoder.OPCODES.get(self.opcode, MIPSDecoder.FUNCTIONS.get(self.fields.get('funct', 0), "Desconhecido"))[0]
+        if self.type == InstrType.R:
+            self.name = MIPSDecoder.FUNCTIONS.get(self.fields.get('funct', 0), "Desconhecido")#se for R ele pega a parte dos 32bits referente a funct e atribui ao name qual tipo ela é
+        else:
+            self.name = MIPSDecoder.OPCODES.get(self.opcode, ("Desconhecido", ""))[0] #se for I ou J é mais simples, ele pega a primeira posição
+
         self.mnemonic = self.get_mnemonic(self.fields, self.type)
-        print(f' Formato mnemonico: {self.mnemonic}')# pra imprimir o formato mnemonico da instrução
+        print(f'Formato mnemônico: {self.mnemonic}')# pra imprimir o formato mnemonico da instrução
 
     def __str__(self) -> str:
         return self.mnemonic
@@ -59,10 +63,10 @@ class Instruction:
 
     @staticmethod
     def get_mnemonic(fields: dict, type: InstrType) -> str:
-        if type == InstrType.R:
+        if type == InstrType.R: # No caso de ser tipo R
             funct = fields.get('funct')
             nome_instrucao = MIPSDecoder.FUNCTIONS.get(funct, "Desconhecido")#acha qual a função e se não tiver retorna "desconhecido"
-
+            # Atribui valores as respectivas variáveis:
             rd = MIPSDecoder.get_register_name(fields.get('rd'))
             rs = MIPSDecoder.get_register_name(fields.get('rs'))
             rt = MIPSDecoder.get_register_name(fields.get('rt'))
@@ -71,13 +75,13 @@ class Instruction:
             # Busca o formato correto de mnemônico e substitui os placeholders
             formato = MIPSDecoder.MNEMONIC_FORMATS.get(nome_instrucao, "<instr> <rd>, <rs>, <rt>")#busca lá no dicionario que criei o jeitao da instrução
 
-            # aqui ele retorna já substituindo
+            # aqui ele retorna já substituindo através do método find-replace
             return formato.replace("<instr>", nome_instrucao) \
                 .replace("<rd>", rd) \
                 .replace("<rs>", rs) \
                 .replace("<rt>", rt) \
                 .replace("<shamt>", str(shamt))
-        #abaixo são as condicionais para os tipos J ou I que são mais faceis
+        #abaixo são as condicionais para os tipos J ou I, que são mais simples
         elif type == InstrType.I:
             rs = MIPSDecoder.get_register_name(fields.get('rs'))
             rt = MIPSDecoder.get_register_name(fields.get('rt'))
@@ -91,14 +95,15 @@ class Instruction:
         elif type == InstrType.J:
             address = fields.get('address')
             nome_instrucao, formato = MIPSDecoder.OPCODES.get(fields['opcode'], ("Desconhecido", ""))
+            #Retorna com o formato da instrução
             return formato.replace("<instr>", nome_instrucao) \
                 .replace("<label>", str(address))
-        #se não bater com nada ate agora então ele retorna "desconhecido"
+        #se não bater com nada até agora então ele retorna "desconhecido"
         else:
             return "Desconhecido"
 
-class MIPSDecoder:
-
+class MIPSDecoder: #Dicionário ou mapa
+    #Dicionário dos registradores
     REGISTERS = {
         0: '$zero',
         1: '$at',
@@ -133,9 +138,9 @@ class MIPSDecoder:
         30: '$s8',
         31: '$ra'
     }
-
+    #Dicionário dos opcodes estilo chave e valor, agora com tuplas
     OPCODES = {
-        0b000000: ('[R-Type]', ''),  # Todas as instruções do tipo R são identificadas pelo campo 'funct'
+        0b000000: ('R', ''),  # Todas as instruções do tipo R são identificadas pelo campo 'funct'
         # I-Type Instructions
         0b001000: ('addi', '<instr> <rt>, <rs>, <imm>'),  # addi rt, rs, immediate
         0b001001: ('addiu', '<instr> <rt>, <rs>, <imm>'),  # addiu rt, rs, immediate
@@ -144,7 +149,6 @@ class MIPSDecoder:
         0b000001: ('bgez', '<instr> <rs>, <label>'),  # bgez rs, label
         0b000111: ('bgtz', '<instr> <rs>, <label>'),  # bgtz rs, label
         0b000110: ('blez', '<instr> <rs>, <label>'),  # blez rs, label
-        # 0b000001: ('bltz', '<instr> <rs>, <label>'),  # bltz rs, label
         0b000101: ('bne', '<instr> <rs>, <rt>, <label>'),  # bne rs, rt, label
         0b100000: ('lb', '<instr> <rt>, <imm>(<rs>)'),  # lb rt, immediate(rs)
         0b100100: ('lbu', '<instr> <rt>, <imm>(<rs>)'),  # lbu rt, immediate(rs)
@@ -165,7 +169,7 @@ class MIPSDecoder:
         0b000010: ('j', '<instr> <label>'),  # j label
         0b000011: ('jal', '<instr> <label>')  # jal label
     }
-
+    # Dicionário de funções, que são para o tipo R
     FUNCTIONS = {
         # R-Type Instructions
         0b100000: 'add',	            # add rd, rs, rt
@@ -198,9 +202,15 @@ class MIPSDecoder:
         0b100110: 'xor',	            # xor rd, rs, rt
     }
 
-    # Dicionario para as instruções do tipo R diferentes do padrão normal
-    # Mapeamento dos formatos de mnemônico
+    # Dicionario para as instruções do tipo R diferentes do padrão normal, a partir das Functions a gente parte pra cá.
+    # Mapeamento dos formatos de mnemônico usando tuplas para saber qual o jeitão de cada uma
     MNEMONIC_FORMATS = {
+        'add': '<instr> <rd>, <rs>, <rt>',
+        'addu': '<instr> <rd>, <rs>, <rt>',
+        'and': '<instr> <rd>, <rs>, <rt>',
+        'break': '<instr>',
+        'div': '<instr> <rs>, <rt>',
+        'divu': '<instr> <rs>, <rt>',
         'jr': '<instr> <rs>',
         'jalr': '<instr> <rd>, <rs>',
         'mfhi': '<instr> <rd>',
@@ -209,40 +219,152 @@ class MIPSDecoder:
         'mtlo': '<instr> <rs>',
         'mult': '<instr> <rs>, <rt>',
         'multu': '<instr> <rs>, <rt>',
-        'div': '<instr> <rs>, <rt>',
-        'divu': '<instr> <rs>, <rt>',
         'sll': '<instr> <rd>, <rt>, <shamt>',
         'sra': '<instr> <rd>, <rt>, <shamt>',
         'srl': '<instr> <rd>, <rt>, <shamt>',
         'sllv': '<instr> <rd>, <rt>, <rs>',
         'srlv': '<instr> <rd>, <rt>, <rs>',
         'srav': '<instr> <rd>, <rt>, <rs>',
+        'slt': '<instr> <rd>, <rs>, <rt>',
+        'sltu': '<instr> <rd>, <rs>, <rt>',
+        'sub': '<instr> <rd>, <rs>, <rt>',
+        'subu': '<instr> <rd>, <rs>, <rt>',
         'syscall': '<instr>',
-        'break': '<instr>',
-        'movn': '<instr> <rd>, <rs>, <rt>',
-        'movz': '<instr> <rd>, <rs>, <rt>',
-        'clo': '<instr> <rd>, <rs>',
-        'clz': '<instr> <rd>, <rs>',
-        'seb': '<instr> <rd>, <rt>',
-        'seh': '<instr> <rd>, <rt>'
+        'or': '<instr> <rd>, <rs>, <rt>',
+        'xor': '<instr> <rd>, <rs>, <rt>',
+        'nor': '<instr> <rd>, <rs>, <rt>',
     }
 
     def parse_instruction(self, bits: str) -> Instruction:
         return Instruction(bits)
 
-    def decode_instruction(self, instr) -> dict: #Isso aqui, só por Deus viu...
-        # Implemente aqui...
-        # Este método deve retornar um dicionário com os sinais de controle da instrução
-        # { RegDst, Branch, MemRead, MemWrite, MemToReg, ALUSrc, RegWrite }. Exemplo:
-        return {
-            'ALUSrc': None,
-            'Branch': None,
-            'MemRead': None,
-            'MemToReg': None,
-            'MemWrite': None,
-            'RegDst': None,
-            'RegWrite': None
+    @staticmethod
+    def get_sinais_de_controle(instr):
+
+        sinais_de_controle = {
+            # tipo R
+            'add': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'addu': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'and': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'break': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                      'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'div': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'divu': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'jalr': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 1},
+            'jr': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                   'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 1},
+            'mfhi': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'mflo': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'mthi': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'mtlo': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'mult': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'multu': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                      'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'nor': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'or': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                   'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'sll': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'sllv': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'sra': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'srav': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'srl': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'srlv': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'slt': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'sltu': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'sub': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'subu': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'syscall': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                        'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'movn': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'movz': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'clo': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'seb': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'seh': {'RegDst': 1, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+
+            # Tipo I
+            'addi': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'addiu': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 1,
+                      'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'andi': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'beq': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 1, 'Jump': 0},
+            'bne': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 1, 'Jump': 0},
+            'bgez': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 1, 'Jump': 0},
+            'bgtz': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 1, 'Jump': 0},
+            'blez': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 1, 'Jump': 0},
+            'lb': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 1, 'RegWrite': 1,
+                   'MemRead': 1, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'lbu': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 1, 'RegWrite': 1,
+                    'MemRead': 1, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'lh': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 1, 'RegWrite': 1,
+                   'MemRead': 1, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'lhu': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 1, 'RegWrite': 1,
+                    'MemRead': 1, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'lw': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 1, 'RegWrite': 1,
+                   'MemRead': 1, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'lui': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'ori': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'sb': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 0,
+                   'MemRead': 0, 'MemWrite': 1, 'Branch': 0, 'Jump': 0},
+            'sh': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 0,
+                   'MemRead': 0, 'MemWrite': 1, 'Branch': 0, 'Jump': 0},
+            'slti': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 1,
+                     'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'sltiu': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 1,
+                      'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0},
+            'sw': {'RegDst': 0, 'ALUSrc': 1, 'MemToReg': 0, 'RegWrite': 0,
+                   'MemRead': 0, 'MemWrite': 1, 'Branch': 0, 'Jump': 0},
+
+            # tipo J
+            'j': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+                  'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 1},
+            'jal': {'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 1,
+                    'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 1},
         }
+
+        # Obtém o mnemonic em lowercase para garantir correspondência
+        mnemonic = instr.mnemonic.strip().split()[0].lower()
+
+        # Retorna os sinais de controle ou um padrão com zeros caso não encontrado
+        return sinais_de_controle.get(mnemonic, {
+            'RegDst': 0, 'ALUSrc': 0, 'MemToReg': 0, 'RegWrite': 0,
+            'MemRead': 0, 'MemWrite': 0, 'Branch': 0, 'Jump': 0
+        })
 
     @staticmethod
     def get_register_name(register_index: int) -> str:
@@ -254,7 +376,7 @@ class MIPSDecoder:
         return inv_map[register_name]
 
 
-def parse_int(num_str: str) -> int:
+def parse_int(num_str: str) -> int:# aqui ele pega a instrução digitada, compreende qual base é e retorna ela convertida
     num_str = num_str.lower()
     base = 2 if num_str.startswith('0b') else 8 if num_str.startswith('0o') else \
            16 if num_str.startswith('0x') else 10
@@ -262,9 +384,9 @@ def parse_int(num_str: str) -> int:
 
 
 def print_output(instr: Instruction, signals: dict) -> None:
-    if instr.type == InstrType.R:
+    if instr.type == InstrType.R: #se for tipo R ele usa esse caminho pra imprimir o tipo da instrução no dict FUNCTIONS
         print(f'Instrução: {MIPSDecoder.FUNCTIONS.get(instr.fields.get("funct", 0), "Desconhecido")}')
-    else:
+    else:#Outros tipos ele consegue buscar direto o tipo da instrução pelo .name
         print(f'Instrução: {instr.name}')
     print(f'- Tipo: {instr.type.name}')
     print(f'- Campos:')
@@ -292,14 +414,72 @@ def main():
         if not input_value:
             break
         instr = decoder.parse_instruction(f'{parse_int(input_value):032b}')
-        signals = decoder.decode_instruction(instr)
+        print(f"Buscando sinais para: {instr.mnemonic.lower()}")
+        signals = decoder.get_sinais_de_controle(instr)
         print_output(instr, signals)
+
+
+ ## para fins de testes descomente esse bloco, rode o código inserindo qquer instrução que ele passará por esse trecho testando vários outras instruções:
+        testes = [
+            "00000000001000000000000000001000",  # jr $1              (funct=0x08)
+            "00000000001000110001100000001001",  # jalr $3, $1        (funct=0x09)
+            "00000000000000000001100000010000",  # mfhi $3            (funct=0x10)
+            "00000000000000000001100000010010",  # mflo $3            (funct=0x12)
+            "00000000001100000000000000010001",  # mthi $3            (funct=0x11)
+            "00000000001100000000000000010011",  # mtlo $3            (funct=0x13)
+            "00000000001100010000000000011000",  # mult $3, $1        (funct=0x18)
+            "00000000001100010000000000011001",  # multu $3, $1       (funct=0x19)
+            "00000000001100010000000000011010",  # div $3, $1         (funct=0x1A)
+            "00000000001100010000000000011011",  # divu $3, $1        (funct=0x1B)
+            "00000000000000100001100010000000",  # sll $3, $2, 4      (funct=0x00)
+            "00000000000000100001100010000011",  # sra $3, $2, 4      (funct=0x03)
+            "00000000000000100001100010000010",  # srl $3, $2, 4      (funct=0x02)
+            "00000000001100100001100000000100",  # sllv $3, $2, $1    (funct=0x04)
+            "00000000001100100001100000000110",  # srlv $3, $2, $1    (funct=0x06)
+            "00000000001100100001100000000111",  # srav $3, $2, $1    (funct=0x07)
+            "00000000000000000000000000001100",  # syscall            (funct=0x0C)
+            "00000000000000000000000000001101",  # break              (funct=0x0D)
+
+        # ==== Tipo I ====
+            "00100000001000100000000000001010",  # addi $2, $1, 10
+            "00100100001000100000000000001010",  # addiu $2, $1, 10
+            "00110000001000100000000000001111",  # andi $2, $1, 15
+            "00010000001000100000000000000100",  # beq $1, $2, 4
+            "00000100001000010000000000001000",  # bgez $1, 8
+            "00011100001000000000000000000100",  # bgtz $1, 4
+            "00011000001000000000000000000100",  # blez $1, 4
+            "00010100001000100000000000000100",  # bne $1, $2, 4
+            "10000000001000100000000000010100",  # lb $2, 20($1)
+            "10010000001000100000000000010100",  # lbu $2, 20($1)
+            "10000100001000100000000000010100",  # lh $2, 20($1)
+            "10010100001000100000000000010100",  # lhu $2, 20($1)
+            "00111100000000100000000001100100",  # lui $2, 100
+            "10001100001000100000000000010100",  # lw $2, 20($1)
+            "11000100001000100000000000010100",  # lwc1 $2, 20($1)
+            "00110100001000100000000000010101",  # ori $2, $1, 21
+            "10100000001000100000000000010100",  # sb $2, 20($1)
+            "00101000001000100000000000001100",  # slti $2, $1, 12
+            "00101100001000100000000000001100",  # sltiu $2, $1, 12
+            "10100100001000100000000000010100",  # sh $2, 20($1)
+            "10101100001000100000000000010000",  # sw $2, 16($1)
+            "11100100001000100000000000010100",  # swc1 $2, 20($1)
+            "00111000001000100000000000011001",  # xori $2, $1, 25
+
+            # ==== Tipo J ====
+            "00001000000000000000000000000100",  # j 4
+            "00001100000000000000000000001000",  # jal 8
+        ]
+
+        for bin_instr in testes:
+            instr = MIPSDecoder().parse_instruction(bin_instr)
+            signals = MIPSDecoder().get_sinais_de_controle(instr)
+            print_output(instr, signals)
 
 
 if __name__ == '__main__':
     main()
 
-    #PARA TESTAR O CÓDIGO:
+    #SE PRECISAR AQUI FICAM ALGUMAS INSTRUÇÕES PARA TESTAR O CÓDIGO MANUALMENTE:
     # # Instruções do tipo R (funct define a operação)
     # instr_r =
     #     "0b00000000001000000000000000001000",  # jr $1
