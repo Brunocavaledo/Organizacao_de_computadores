@@ -414,7 +414,6 @@ def main():
         if not input_value:
             break
         instr = decoder.parse_instruction(f'{parse_int(input_value):032b}')
-        print(f"Buscando sinais para: {instr.mnemonic.lower()}")
         signals = decoder.get_sinais_de_controle(instr)
         print_output(instr, signals)
 
